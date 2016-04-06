@@ -1,0 +1,217 @@
+__author__ = 'Edward'
+from tkinter import *
+
+
+def number_check(string):
+    """gets a string and checks if it is a number or not"""
+    try:
+        int(string)
+        return(True)
+    except ValueError:
+        return(False)
+
+
+def calculate_team_score(lists):
+    """calculates a teams score"""
+    score = (lists[2]*3) + lists[3]
+    return(score)
+
+
+def createLeague(raw_data):
+    """turns the raw data into a list with each team as a sublist for easy data manipulation"""
+    data=[]
+    position=0
+    past_coloumn_headers=False
+
+    for eachline in raw_data:
+        eachline=eachline.strip()
+        line = eachline.split(",")
+
+        for i in line:
+            if number_check(i) == True:
+                line[position]=int(i)
+                past_coloumn_headers=True
+
+            if line[position]=="":
+                waste=line.pop(position)
+            position += 1
+
+        if past_coloumn_headers ==True:
+            score=calculate_team_score(line)
+            line.append(int(score))
+
+        data.append(line)
+        position = 0
+    data[1].append("League points")
+    return(data)
+
+
+def create_simple_list(league_table):
+    """THis creates a simplified  version of the league table without the coloumn headers for easier data manipulation"""
+    simple_list=league_table
+    waste=simple_list.pop(0)
+    waste2=simple_list.pop(0)
+    return(simple_list)
+
+
+def getTeam(team_name,data_list):
+    """WHen given a name this will return all the info on their previous games"""
+    for sub_list in data_list:
+        for name in sub_list:
+            if name == team_name:
+                return(sub_list)
+
+
+def get_winner(team_info):
+    """goes through the data and lookes for the team with the most points and if there are two teams with the same number of points it selects the one with the least number of loses"""
+    current_highest=0
+    position=-1
+    for list in team_info:
+        position +=1
+        if list[5]>current_highest:
+            current_highest=list[5]
+            highest_position=position
+        elif list[5] == current_highest:
+            if list[4] < team_info[highest_position][4]:
+                current_highest=list[5]
+                highest_position=position
+    return(team_info[highest_position])
+
+
+
+def get_team_list_location(team_name,data_list):
+    """given a team thies function will return the position of that teams list in the data"""
+    counter= -1
+    for i in data_list:
+        counter +=1
+        for name in i:
+            if name == team_name:
+                return(counter)
+
+
+def update_score(team1,team1_goals,team2,team2_goals, data_list):
+    """given 2 teams and the number of goals each team scored this will work out the result and update all applicable information in the table"""
+    if team1_goals > team2_goals:
+        winner = team1
+        looser=team2
+    elif team2_goals > team1_goals:
+        winner = team2
+        looser = team1
+    else:
+        winner = "draw"
+    if winner != "draw":
+        data_list[get_team_list_location(winner,data_list)][5] += 3#score
+        data_list[get_team_list_location(winner,data_list)][2] += 1#wins
+        data_list[get_team_list_location(winner,data_list)][1] += 1#games played
+        data_list[get_team_list_location(looser,data_list)][1] += 1#games played
+        data_list[get_team_list_location(looser,data_list)][4] += 1#loses
+    elif winner == "draw":
+        data_list[get_team_list_location(team1,data_list)][5] += 1#score
+        data_list[get_team_list_location(team1,data_list)][3] += 1#draws
+        data_list[get_team_list_location(team1,data_list)][1] += 1#games played
+        data_list[get_team_list_location(team2,data_list)][5] += 1#score
+        data_list[get_team_list_location(team2,data_list)][3] += 1#draws
+        data_list[get_team_list_location(team2,data_list)][1] += 1#games played
+
+
+
+
+def click_update_score():
+    """this gives the update score button functionality and calls the update score function and gets the data from the gui to do it then updates the table"""
+    update_score(listbox1.get(ACTIVE),team1_goals.get(),listbox2.get(ACTIVE), team2_goals.get(),simple_data)
+    t = Text(root)
+    t.insert(END, str(table_header[1]).strip('[]') + '\n')
+    for line in simple_data:
+        t.insert(END, str(line).strip('[]') + '\n')
+        t.grid(row=0, column=0,columnspan=3)
+
+
+def click_get_team_info():
+    """this gets the info of the team slected using getTeam function in the right listbox and displyas it"""
+    team_stats.set(getTeam(listbox1.get(ACTIVE), simple_data))
+
+
+def click_get_top_team():
+    """This displays the current highest team using the get_winner() function and displays it"""
+    team_stats.set(get_winner(simple_data))
+
+
+
+
+#call functions to inport the data and create the list of data
+raw_data=open("european leagues.csv", "r")
+data = createLeague(raw_data)
+table_header=data[0:2]
+simple=list(data)
+simple_data=create_simple_list(simple) #update score not working since i have used two lists, updating one and then showing the other
+
+
+root =Tk()
+
+root.title(table_header[0])#could get the name of the league
+t = Text(root)
+
+#print list of data in gui
+t.insert(END, str(table_header[1]).strip('[]') + '\n')
+for line in simple_data:
+    t.insert(END, str(line).strip('[]') + '\n')
+t.grid(row=0, column=0,columnspan=3)
+
+#team2 list box
+listbox2 = Listbox(root, exportselection=0)
+listbox2.grid(row=1, column=2)
+for line in simple_data:
+    listbox2.insert(END, str(line[0]).strip('[]'))
+
+#team1 list box
+listbox1 = Listbox(root, exportselection=0)
+listbox1.grid(row=1, column=0)
+for line in simple_data:
+    listbox1.insert(END, str(line[0]).strip('[]'))
+
+#vs label
+lab= Label(root, text="VS")
+lab.grid(row=1, column=1)
+
+#goals label
+lab= Label(root, text="Goals")
+lab.grid(row=2, column=1)
+
+#team 1 goals input box
+team1_goals= IntVar()
+Entry(root, textvariable=team1_goals).grid(row=2, column=0)
+
+#team 2 goals input box
+team2_goals= IntVar()
+Entry(root, textvariable=team2_goals).grid(row=2, column=2)
+
+#update scores
+update_button = Button(root, text="Update table", command=click_update_score)
+update_button.grid(row=3, column=1)
+
+#get team info button
+team_button = Button(root, text="Get team info", command=click_get_team_info )
+team_button.grid(row=4, column=0)
+
+#display team info for get team/winner
+team_stats=StringVar()
+team_info_lab= Label(root, textvariable=team_stats)
+team_info_lab.grid(row=5, column=1, columnspan=2)
+
+#get top of league button
+button = Button(root, text="View team at the top of the league", command=click_get_top_team)
+button.grid(row=5, column=0)
+
+#display league table header
+league_info=StringVar()
+league_info_lab= Label(root, textvariable=league_info)
+league_info_lab.grid(row=4, column=1, columnspan=2)
+league_info.set(table_header[1])
+
+root.mainloop()
+
+
+
+
+
+
